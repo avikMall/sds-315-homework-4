@@ -1,0 +1,301 @@
+---
+title: "Homework 4"
+author: "Avik Malladi"
+date: "2024-02-19"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message= FALSE)
+```
+
+``` {r}
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(mosaic)
+```
+
+Name: Avik Malladi
+EID: arm7542
+Github: https://github.com/avikMall/sds-315-homework-4
+
+
+## Problem 1
+
+``` {r}
+gasPrices <- read.csv("GasPrices.csv")
+```
+
+
+### Theory A: Gas stations charge more if they lack direct competition in sight.
+
+``` {r}
+
+gas_bootstrap <- mosaic::resample(gasPrices)
+# diffmean(Price ~ Competitors, data = gas_bootstrap)
+# diffmean(Price ~ Competitors, data = gasPrices)
+# mean(Price~Competitors, data=gas_bootstrap)
+price_comp <- do(10000) * diffmean(Price ~ Competitors, data = mosaic::resample(gasPrices))
+conf <- confint(price_comp, level = 0.95)
+```
+
+Claim: Gas stations charge more if they lack direct competition in sight.
+
+Evidence: 
+
+``` {r}
+ggplot(price_comp) + 
+  geom_histogram(aes(x=diffmean), fill="Dark red") + labs(title = "Distribution of difference in means of gas stations with/without close competition")
+```
+
+The difference between gas prices in gas stations with direct competition in sight vs. without direct competition in sight is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence.
+
+Conclusion: According to the results calculated, this theory is not supported by the data. In fact, it is shown that gas stations with competition charge ~1.5 cents less than gas stations without competition on average. 
+
+### Theory B: The richer the area, the higher the gas prices.
+
+``` {r}
+boot_rich_price <- do(10000) * lm(Price ~ Income, data=mosaic::resample(gasPrices))
+conf <- confint(boot_rich_price, level=0.95)
+# round(conf$lower[4], 4)
+```
+
+Claim: The richer the area, the higher the gas prices.
+
+Evidence: 
+
+``` {r}
+ggplot(gasPrices, aes(x = Income, y = Price)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of Gas Prices vs. Median Household Income",
+       x = "Median Household Income",
+       y = "Gas Prices")
+```
+
+The R square value of gas prices vs. the surrounding median household income is somewhere in between `r round(conf$lower[4], 3)` and `r round(conf$upper[4], 3)` with 95% confidence.
+
+Conclusion: This claim is supported by the data as the linear regression line has a positive slope (gas prices increase as house income increases)
+
+### Theory C: Gas stations at stoplights charge more.
+
+``` {r}
+price_stop <- do(10000) * diffmean(Price ~ Stoplight, data=mosaic::resample(gasPrices))
+conf <- confint(price_stop, level = 0.95)
+# price_stop
+```
+
+Claim: Gas stations at stoplights charge more.
+
+Evidence: 
+
+``` {r}
+ggplot(price_stop) + 
+  geom_histogram(aes(x=diffmean), fill="dark blue") + labs(title = "Distribution of difference of mean of gas prices away and close to stoplights.")
+```
+
+The difference in means of gas prices at gas stations near stoplights and gas stations away from stoplights is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence.
+
+Conclusion: This claim is not supported by the data as gas prices do not to seem to change at gas stations close to stoplights and away from stop lights.
+
+
+### Theory D: Gas stations with direct highway access charge more.
+
+``` {r}
+price_highway <- do(10000) * diffmean(Price ~ Highway, data=mosaic::resample(gasPrices))
+
+# mean(Price ~ Highway, data=gasPrices)
+conf <- confint(price_highway, level = 0.95)
+# price_highway
+```
+
+Claim: Gas stations with direct highway access charge more.
+
+Evidence:
+
+``` {r}
+ggplot(price_highway) + 
+  geom_histogram(aes(x=diffmean), fill="dodger blue") + labs(title="Distribution of the difference of means of gas prices with/without highway access")
+```
+
+The difference in means of gas prices between gas stations with direct highway access and without direct highway access is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence.
+
+Conclusion: This claim is supported by the data as gas prices at gas stations with highway access are about 5 cents higher than gas stations without on average. 
+
+
+
+### Theory E: Shell charges more than all other non-Shell brands.
+
+``` {r}
+gasPrices <- within(gasPrices, {
+  shell_b <- NA
+  shell_b[Brand == "Shell"] <- T
+  shell_b[Brand != "Shell"] <- F
+})
+
+price_shell <- do(10000) * diffmean(Price ~ shell_b, data=mosaic::resample(gasPrices))
+conf <- confint(price_shell, level=0.95)
+```
+
+Claim: Shell charges more than all other non-Shell brands.
+
+Evidence:
+``` {r}
+ggplot(price_shell) + geom_histogram(aes(diffmean), fill="darkorange3") + labs(title = "Distribution of difference in mean gas prices at Shell/non-Shell gas stations")
+```
+
+The difference in means of gas prices at Shell gas stations and non-Shell gas stations is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+Conclusion: The claim is supported by the data as Shell gas stations charge almost 3 cents more than non-Shell gas stations on average. 
+
+
+
+## Problem 2
+
+``` {r}
+sclass <- read.csv('sclass.csv')
+```
+
+### Part A
+
+``` {r}
+data_sub1 <- sclass %>%
+  filter(year == 2011, trim == "63 AMG")
+
+# data_sub1$mileage
+
+avg_mile <- do(10000) * mean(~mileage, data=mosaic::resample(data_sub1))
+
+# ggplot(avg_mile) + geom_histogram(aes(mean))
+conf <- confint(avg_mile, level = 0.95)
+# round(conf$lower, 3)
+```
+The average mileage for 2011 S-Class 63 AMGs that were hitting the used-car market when this data was collected is somewhere in between `r conf$lower` and `r conf$upper` with 95% confidence. 
+
+### Part B
+
+``` {r}
+data_sub2 <- sclass %>%
+  filter(year == 2014, trim == "550") %>%
+  mutate(isBlack = ifelse(color == "Black", 
+                          yes=T, no=F))
+
+# prop(data_sub2$isBlack)
+prop_black <- do(10000) * prop(~isBlack, data=mosaic::resample(data_sub2))
+conf <- confint(prop_black, level=0.95)
+# ggplot(prop_black) + geom_histogram(aes(prop_TRUE))
+```
+
+The proportion of all 2014 S-Class 550s that were painted black when this data was collected is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+
+## Problem 3
+
+``` {r}
+pilotsurvey <- read.csv("nbc_pilotsurvey.csv")
+```
+
+### Part A
+
+``` {r}
+pilot_sub1 <- pilotsurvey %>%
+  filter(Show == "Living with Ed" | Show == "My Name is Earl")
+
+diff_psub1 <- do(10000) * diffmean(Q1_Happy~Show, data=mosaic::resample(pilot_sub1))
+# mean(Q1_Happy~Show, data=pilot_sub1)
+conf <- confint(diff_psub1, level=0.95)
+```
+
+Question: Who makes people happier: Ed or Earl?
+
+Approach: For this question we filter the data to only contain the 2 shows of interest and then use the diffmean() and confint() functions to calculate the confidence intervals. 
+
+Results:
+
+``` {r}
+ggplot(diff_psub1) + geom_histogram(aes(diffmean), fill="hotpink4") + labs(title = "Difference in mean Happiness rating of Living with Ed and My Name is Earl")
+```
+
+The difference in mean happiness rating between "Living with Ed" and "My Name is Earl" is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+Conclusion: Based on the data analyzed, the show "Living with Ed" makes people happier than the show "My Name is Earl." We can see that "Living with Ed" got almost 0.2 points higher happiness rating by viewers on average. 
+
+
+### Part B
+
+``` {r}
+pilot_sub2 <- pilotsurvey %>%
+  filter(Show == "The Biggest Loser" | Show == "The Apprentice: Los Angeles")
+
+diff_psub2 <- do(10000) * diffmean(Q1_Annoyed~Show, data=mosaic::resample(pilot_sub2))
+# mean(Q1_Annoyed~Show, data=pilot_sub2)
+conf <- confint(diff_psub2, level=0.95)
+```
+
+Question: Which reality/contest show made people feel more annoyed?
+
+Approach: For this question we filter the data to only contain the 2 shows of interest and then use the diffmean() and confint() functions to calculate the confidence intervals.
+
+Results:
+``` {r}
+ggplot(diff_psub2) + geom_histogram(aes(diffmean), fill="slategray4") + labs(title="Difference in mean annoyance rating of The Biggest Loser and The Apprentice: LA")
+```
+
+The difference in mean annoyance rating between "The Biggest Loser" and "The Apprentice: Los Angeles" is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+Conclusion: According to the data, "The Apprentice: Los Angeles" made people more annoyed. "The Apprentice: Los Angeles" recieved a 0.3 point higher annoyance rating from viewers on average. 
+
+
+### Part C
+
+``` {r}
+dancing_stars <- pilotsurvey %>%
+  filter(Show == "Dancing with the Stars") %>%
+  mutate(confusing = ifelse(Q2_Confusing == 4 | Q2_Confusing == 5,
+                            yes=T, no=F))
+# prop(~confusing, data=dancing_stars)
+boot_dancing <- do(10000) * prop(~confusing, data=mosaic::resample(dancing_stars))
+conf <- confint(boot_dancing, level=0.95)
+```
+
+Question: Is the Show "Dancing With the Stars" confusing to viewers?
+
+Approach: For this question we filter the data to the show of interest and add another boolean variable (whether the viewer thought the show was confusing or not). Then we use the prop() and confint() functions to calculate the confidence intervals for the proportion of people who found the show confusing.
+
+Results:
+
+``` {r}
+ggplot(boot_dancing) + geom_histogram(aes(prop_TRUE), fill="purple4") + labs(title = "Average proportion of viewers who found Dancing with the Stars confusing", x="Proportion who found Dancing with the Stars confusing")
+```
+The proportion of viewers who found Dancing with the Stars confusing is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+Conclusion: According to the data, the show "Dancing with the stars" is not very confusing to viewers. The data shows that only around 7% of users found the show confusing on average. 
+
+## Problem 4
+
+``` {r}
+ebay <- read.csv("ebay.csv")
+
+ebay <- ebay %>%
+  mutate(rev_ratio = rev_after / rev_before)
+# mean(rev_ratio ~ adwords_pause, data=ebay)
+boot_ebay <- do(10000) * diffmean(rev_ratio ~ adwords_pause, data=mosaic::resample(ebay))
+conf <- confint(boot_ebay, level=0.95)
+```
+
+Question: Does Ebay's paid advertising on Google’s search platform improve EBay’s revenue?
+
+Approach: For this question we create a new variable tracking the ratio of revenue before and after the start of the expirement. We then use the diffmean() and confint() function to calculate confidence intervals for the revenue ratios. 
+
+Results:
+``` {r}
+ggplot(boot_ebay) + geom_histogram(aes(diffmean), fill="turquoise4") + labs(title="Distribution of differences in mean revenue ratio of control and treatment groups")
+```
+
+The difference in mean revenue ratio between the control and treatment groups is somewhere in between `r round(conf$lower, 3)` and `r round(conf$upper, 3)` with 95% confidence. 
+
+Conclusion: According to the data, Ebay's paid advertising on Google's search platform does improve Ebay's revenue. While both the control and treatment groups saw a decrease in revenue on average, the treatment groups fall was more drastic was a difference of about 5% on average. 
